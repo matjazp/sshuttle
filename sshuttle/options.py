@@ -296,7 +296,7 @@ parser.add_argument(
 parser.add_argument(
     "-e", "--ssh-cmd",
     metavar="CMD",
-    default="ssh",
+    default="tsh ssh",
     help="""
     the command to use to connect to the remote [%(default)s]
     """
