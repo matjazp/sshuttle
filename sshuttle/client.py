@@ -164,7 +164,22 @@ class MultiListener:
         self.bind_called = True
         if address_v6 is not None:
             self.v6 = socket.socket(socket.AF_INET6, self.type, self.proto)
-            self.v6.bind(address_v6)
+            try:
+                self.v6.bind(address_v6)
+            except OSError as e:
+                if e.errno == errno.EADDRNOTAVAIL:
+                    # On an IPv6 Linux machine, this situation occurs
+                    # if you run the following prior to running
+                    # sshuttle:
+                    #
+                    # echo 1 > /proc/sys/net/ipv6/conf/all/disable_ipv6
+                    # echo 1 > /proc/sys/net/ipv6/conf/default/disable_ipv6
+                    raise Fatal("Could not bind to an IPv6 socket with "
+                                "address %s and port %s. "
+                                "Potential workaround: Run sshuttle "
+                                "with '--disable-ipv6'."
+                                % (str(address_v6[0]), str(address_v6[1])))
+                raise e
         else:
             self.v6 = None
         if address_v4 is not None:
@@ -205,8 +220,8 @@ class FirewallClient:
         else:
             # Linux typically uses sudo; OpenBSD uses doas. However, some
             # Linux distributions are starting to use doas.
-            sudo_cmd = ['sudo', '-p', '[local sudo] Password: ']+argvbase
-            doas_cmd = ['doas']+argvbase
+            sudo_cmd = ['sudo', '-p', '[local sudo] Password: ']
+            doas_cmd = ['doas']
 
             # For clarity, try to replace executable name with the
             # full path.
@@ -225,8 +240,13 @@ class FirewallClient:
                 pp_prefix = ['/usr/bin/env',
                              'PYTHONPATH=%s' %
                              os.path.dirname(os.path.dirname(__file__))]
-                sudo_cmd = pp_prefix + sudo_cmd
-                doas_cmd = pp_prefix + doas_cmd
+                sudo_cmd = sudo_cmd + pp_prefix
+                doas_cmd = doas_cmd + pp_prefix
+
+            # Final order should be: sudo/doas command, env
+            # pythonpath, and then argvbase (sshuttle command).
+            sudo_cmd = sudo_cmd + argvbase
+            doas_cmd = doas_cmd + argvbase
 
             # If we can find doas and not sudo or if we are on
             # OpenBSD, try using doas first.

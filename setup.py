@@ -46,22 +46,20 @@ setup(
         "Development Status :: 5 - Production/Stable",
         "Intended Audience :: Developers",
         "Intended Audience :: End Users/Desktop",
-        "License :: OSI Approved :: "
+        "License :: OSI Approved :: " +
             "GNU Lesser General Public License v2 or later (LGPLv2+)",
         "Operating System :: OS Independent",
-        "Programming Language :: Python :: 3.6",
-        "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
         "Topic :: System :: Networking",
     ],
-    scripts=['bin/sudoers-add'],
     entry_points={
         'console_scripts': [
             'sshuttle = sshuttle.cmdline:main',
         ],
     },
-    python_requires='>=3.6',
+    python_requires='>=3.8',
     install_requires=[
     ],
     tests_require=[
