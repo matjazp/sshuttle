@@ -193,7 +193,6 @@ class SockWrapper:
         if not self.shut_read:
             debug2('%r: done reading' % self)
             self.shut_read = True
-            # self.rsock.shutdown(SHUT_RD)  # doesn't do anything anyway
 
     def nowrite(self):
         if not self.shut_write:
@@ -227,7 +226,7 @@ class SockWrapper:
                 return 0
 
     def write(self, buf):
-        assert(buf)
+        assert buf
         return self.uwrite(buf)
 
     def uread(self):
@@ -373,11 +372,6 @@ class Mux(Handler):
             if not self.too_full:
                 self.send(0, CMD_PING, b('rttest'))
             self.too_full = True
-        # ob = []
-        # for b in self.outbuf:
-        #    (s1,s2,c) = struct.unpack('!ccH', b[:4])
-        #    ob.append(c)
-        # log('outbuf: %d %r' % (self.amount_queued(), ob))
 
     def send(self, channel, cmd, data):
         assert isinstance(data, bytes)
@@ -402,15 +396,15 @@ class Mux(Handler):
         elif cmd == CMD_EXIT:
             self.ok = False
         elif cmd == CMD_TCP_CONNECT:
-            assert(not self.channels.get(channel))
+            assert not self.channels.get(channel)
             if self.new_channel:
                 self.new_channel(channel, data)
         elif cmd == CMD_DNS_REQ:
-            assert(not self.channels.get(channel))
+            assert not self.channels.get(channel)
             if self.got_dns_req:
                 self.got_dns_req(channel, data)
         elif cmd == CMD_UDP_OPEN:
-            assert(not self.channels.get(channel))
+            assert not self.channels.get(channel)
             if self.got_udp_open:
                 self.got_udp_open(channel, data)
         elif cmd == CMD_ROUTES:
@@ -476,14 +470,12 @@ class Mux(Handler):
 
     def handle(self):
         self.fill()
-        # log('inbuf is: (%d,%d) %r'
-        #     % (self.want, len(self.inbuf), self.inbuf))
         while 1:
             if len(self.inbuf) >= (self.want or HDR_LEN):
                 (s1, s2, channel, cmd, datalen) = \
                     struct.unpack('!ccHHH', self.inbuf[:HDR_LEN])
-                assert(s1 == b('S'))
-                assert(s2 == b('S'))
+                assert s1 == b('S')
+                assert s2 == b('S')
                 self.want = datalen + HDR_LEN
             if self.want and len(self.inbuf) >= self.want:
                 data = self.inbuf[HDR_LEN:self.want]

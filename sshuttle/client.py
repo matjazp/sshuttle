@@ -21,6 +21,10 @@ try:
     from pwd import getpwnam
 except ImportError:
     getpwnam = None
+try:
+    from grp import getgrnam
+except ImportError:
+    getgrnam = None
 
 import socket
 
@@ -123,14 +127,14 @@ class MultiListener:
         self.bind_called = False
 
     def setsockopt(self, level, optname, value):
-        assert(self.bind_called)
+        assert self.bind_called
         if self.v6:
             self.v6.setsockopt(level, optname, value)
         if self.v4:
             self.v4.setsockopt(level, optname, value)
 
     def add_handler(self, handlers, callback, method, mux):
-        assert(self.bind_called)
+        assert self.bind_called
         socks = []
         if self.v6:
             socks.append(self.v6)
@@ -145,7 +149,7 @@ class MultiListener:
         )
 
     def listen(self, backlog):
-        assert(self.bind_called)
+        assert self.bind_called
         if self.v6:
             self.v6.listen(backlog)
         if self.v4:
@@ -160,7 +164,7 @@ class MultiListener:
                     raise e
 
     def bind(self, address_v6, address_v4):
-        assert(not self.bind_called)
+        assert not self.bind_called
         self.bind_called = True
         if address_v6 is not None:
             self.v6 = socket.socket(socket.AF_INET6, self.type, self.proto)
@@ -189,7 +193,7 @@ class MultiListener:
             self.v4 = None
 
     def print_listening(self, what):
-        assert(self.bind_called)
+        assert self.bind_called
         if self.v6:
             listenip = self.v6.getsockname()
             debug1('%s listening on %r.' % (what, listenip))
@@ -315,7 +319,7 @@ class FirewallClient:
 
     def setup(self, subnets_include, subnets_exclude, nslist,
               redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4, udp,
-              user, tmark):
+              user, group, tmark):
         self.subnets_include = subnets_include
         self.subnets_exclude = subnets_exclude
         self.nslist = nslist
@@ -325,6 +329,7 @@ class FirewallClient:
         self.dnsport_v4 = dnsport_v4
         self.udp = udp
         self.user = user
+        self.group = group
         self.tmark = tmark
 
     def check(self):
@@ -363,9 +368,14 @@ class FirewallClient:
             user = bytes(self.user, 'utf-8')
         else:
             user = b'%d' % self.user
-
-        self.pfile.write(b'GO %d %s %s %d\n' %
-                         (udp, user, bytes(self.tmark, 'ascii'), os.getpid()))
+        if self.group is None:
+            group = b'-'
+        elif isinstance(self.group, str):
+            group = bytes(self.group, 'utf-8')
+        else:
+            group = b'%d' % self.group
+        self.pfile.write(b'GO %d %s %s %s %d\n' %
+                         (udp, user, group, bytes(self.tmark, 'ascii'), os.getpid()))
         self.pfile.flush()
 
         line = self.pfile.readline()
@@ -374,8 +384,8 @@ class FirewallClient:
             raise Fatal('%r expected STARTED, got %r' % (self.argv, line))
 
     def sethostip(self, hostname, ip):
-        assert(not re.search(br'[^-\w\.]', hostname))
-        assert(not re.search(br'[^0-9.]', ip))
+        assert not re.search(br'[^-\w\.]', hostname)
+        assert not re.search(br'[^0-9.]', ip)
         self.pfile.write(b'HOST %s,%s\n' % (hostname, ip))
         self.pfile.flush()
 
@@ -726,7 +736,7 @@ def main(listenip_v6, listenip_v4,
          latency_buffer_size, dns, nslist,
          method_name, seed_hosts, auto_hosts, auto_nets,
          subnets_include, subnets_exclude, daemon, to_nameserver, pidfile,
-         user, sudo_pythonpath, tmark):
+         user, group, sudo_pythonpath, tmark):
 
     if not remotename:
         raise Fatal("You must use -r/--remote to specify a remote "
@@ -828,6 +838,15 @@ def main(listenip_v6, listenip_v4,
         except KeyError:
             raise Fatal("User %s does not exist." % user)
     required.user = False if user is None else True
+
+    if group is not None:
+        if getgrnam is None:
+            raise Fatal("Routing by group not available on this system.")
+        try:
+            group = getgrnam(group).gr_gid
+        except KeyError:
+            raise Fatal("Group %s does not exist." % user)
+    required.group = False if group is None else True
 
     if not required.ipv6 and len(subnets_v6) > 0:
         print("WARNING: IPv6 subnets were ignored because IPv6 is disabled "
@@ -973,7 +992,7 @@ def main(listenip_v6, listenip_v4,
                 raise e
 
     if not bound:
-        assert(last_e)
+        assert last_e
         raise last_e
     tcp_listener.listen(10)
     tcp_listener.print_listening("TCP redirector")
@@ -1019,7 +1038,7 @@ def main(listenip_v6, listenip_v4,
 
         dns_listener.print_listening("DNS")
         if not bound:
-            assert(last_e)
+            assert last_e
             raise last_e
     else:
         dnsport_v6 = 0
@@ -1058,7 +1077,7 @@ def main(listenip_v6, listenip_v4,
     # start the firewall
     fw.setup(subnets_include, subnets_exclude, nslist,
              redirectport_v6, redirectport_v4, dnsport_v6, dnsport_v4,
-             required.udp, user, tmark)
+             required.udp, user, group, tmark)
 
     # start the client process
     try:

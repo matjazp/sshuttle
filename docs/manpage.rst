@@ -321,6 +321,18 @@ annotations. For example::
     192.168.63.0/24
 
 
+Environment Variable
+--------------------
+
+You can specify command line options with the `SSHUTTLE_ARGS` environment
+variable. If a given option is defined in both the environment variable and
+command line, the value on the command line will take precedence.
+
+For example::
+
+    SSHUTTLE_ARGS="-e 'ssh -v' --dns" sshuttle -r example.com 0/0
+
+
 Examples
 --------
 
@@ -455,7 +467,7 @@ Packet-level forwarding (eg. using the tun/tap devices on
 Linux) seems elegant at first, but it results in
 several problems, notably the 'tcp over tcp' problem.  The
 tcp protocol depends fundamentally on packets being dropped
-in order to implement its congestion control agorithm; if
+in order to implement its congestion control algorithm; if
 you pass tcp packets through a tcp-based tunnel (such as
 ssh), the inner tcp packets will never be dropped, and so
 the inner tcp stream's congestion control will be

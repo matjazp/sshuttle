@@ -114,7 +114,7 @@ class Method(BaseMethod):
             udp_listener.v6.setsockopt(SOL_IPV6, IPV6_RECVORIGDSTADDR, 1)
 
     def setup_firewall(self, port, dnsport, nslist, family, subnets, udp,
-                       user, tmark):
+                       user, group, tmark):
         if family not in [socket.AF_INET, socket.AF_INET6]:
             raise Exception(
                 'Address family "%s" unsupported by tproxy method'
@@ -127,14 +127,14 @@ class Method(BaseMethod):
 
         def _ipt_proto_ports(proto, fport, lport):
             return proto + ('--dport', '%d:%d' % (fport, lport)) \
-                    if fport else proto
+                if fport else proto
 
         mark_chain = 'sshuttle-m-%s' % port
         tproxy_chain = 'sshuttle-t-%s' % port
         divert_chain = 'sshuttle-d-%s' % port
 
         # basic cleanup/setup of chains
-        self.restore_firewall(port, family, udp, user)
+        self.restore_firewall(port, family, udp, user, group)
 
         _ipt('-N', mark_chain)
         _ipt('-F', mark_chain)
@@ -228,7 +228,7 @@ class Method(BaseMethod):
                          '-m', 'udp',
                          *(udp_ports + ('--on-port', str(port))))
 
-    def restore_firewall(self, port, family, udp, user):
+    def restore_firewall(self, port, family, udp, user, group):
         if family not in [socket.AF_INET, socket.AF_INET6]:
             raise Exception(
                 'Address family "%s" unsupported by tproxy method'
